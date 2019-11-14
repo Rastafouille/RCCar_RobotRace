@@ -7,12 +7,30 @@ Created on Tue Nov  5 14:17:46 2019
 """
 
 import serial
-from math import sqrt
 import rospy
 from time import sleep
-from threading import Lock
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Imu
+
+import smbus
+import time
+
+
+#byte_data = bus.read_byte(i2c_addr)               # Perform SMBus Read Byte transaction.
+#byte_data = bus.read_byte_data(i2c_addr, 0x00)    # (addr, cmd), Perform SMBus Read Byte Data transaction.
+#word_data = bus.read_word_data(i2c_addr, 0x01)    # (addr, cmd), Perform SMBus Read Word Data transaction.
+
+self.bus.write_i2c_block_data(self.i2c_addr, 0, [0x61,128])
+time.sleep(.500)
+self.bus.write_i2c_block_data(self.i2c_addr, 0, [0x76,5])
+#write_byte(i2c_addr, 0xff)                    # Perform SMBus Write Byte transaction.
+#bus.write_byte_data(i2c_addr, 0x10, 0xff)         # (addr, cmd, val), Perform SMBus Write Byte Data transaction.
+#bus.write_word_data(i2c_addr, 0x11, 0x1234)       # (addr, cmd, val), Perform SMBus Write Word Data transaction.
+
+#v : 0x76
+#a : 0x61
+
+
 
 
 class RCCar:
@@ -20,23 +38,15 @@ class RCCar:
         self.sub_pose=rospy.Subscriber("/nunchuk/cmd_vel",Twist,self.cb_cmdvel)
         #le hokuyo
         self.pub_imu=rospy.Publisher("/zumo/imu",Imu,queue_size=10)
-        try:
-            self.PORT=rospy.get_param('ARDUINO_PORT') 
-        except:
-            rospy.set_param('ARDUINO_PORT',"/dev/ttyACM0")
-            self.PORT=rospy.get_param('ARDUINO_PORT')
-        try:
-            self.BAUDRATE=rospy.get_param('ARDUINO_BAUDRATE') 
-        except:
-            rospy.set_param('ARDUINO_BAUDRATE',"9600")
-            self.BAUDRATE=rospy.get_param('ARDUINO_BAUDRATE')
         self.TIMEOUT=0.1
-        self.lock=Lock()
         self.vitesse =[]
         self.angle=[]
         self.p=Imu()
         self.p.header.stamp = rospy.Time.now()
         self.p.header.frame_id="map"
+        
+        self.bus = smbus.SMBus(1)  # '/dev/i2c-1'
+        self.i2c_addr = 0x08
         
         try :
             self.ser = serial.Serial( self.PORT, self.BAUDRATE,timeout=self.TIMEOUT)
@@ -52,17 +62,14 @@ class RCCar:
         
              
     def envoie_consigne(self,cons_vitesse,cons_angle):
-       with self.lock:
-            #construction et envoie trame consigne
-            consigne="~X;"+str(int (cons_vitesse*100))+";"+str(int (cons_angle*100))+";#"
-            self.ser.flush()
-            sleep(0.001)
-            
-            try :
-                self.ser.write(consigne)
-                #rospy.loginfo("Consigne envoyee : "+str(consigne))
-            except :
-                rospy.loginfo( "envoie trame en rade !")
+        try :        
+            self.bus.write_i2c_block_data(self.i2c_addr, 0, [0x61,int(((cons_angle+1)*127.5))])
+            sleep(0.005)        
+            self.bus.write_i2c_block_data(self.i2c_addr, 0, [0x76,int(((cons_vitesse+1)*127.5))])
+        except :
+            rospy.loginfo( "envoie trame en rade !")
+        #v : 0x76
+        #a : 0x61        
         
     def cb_cmdvel(self,msg):
        self.envoie_consigne(msg.linear.x,msg.angular.z)
