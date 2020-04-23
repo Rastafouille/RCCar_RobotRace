@@ -27,7 +27,7 @@ void setup() {
   myservo.write(90);
   Serial.begin(9600);
   Serial.println("Serial OK");
-
+  Serial.println(c);
   //attente init controleur
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, HIGH);
@@ -35,8 +35,11 @@ void setup() {
   digitalWrite(LED_BUILTIN, LOW);    
 
   //I2C
+  Wire.setClock(100000);
   Wire.begin(8);                // join i2c bus with address #8
   Wire.onReceive(receiveEvent); // register event
+
+  Serial.println("READY To Go");
 }
 
 void loop() {
@@ -44,12 +47,13 @@ delay(10);
 
   if (c =='v'){cons_vitesse=map(x,0,254,REAR_MAX,FRONT_MAX); c ='z';
     Serial.print("cons Speed = "); Serial.println(cons_vitesse);
-    //Serial.print(" et cons teta = "); Serial.println(cons_angle);
-    mymotor.write(cons_vitesse);}
-  else if (c == 'a' ){cons_angle=map(x,0,254,ANGLE_MIN,ANGLE_MAX); c ='z';
-    //Serial.print("cons Speed = "); Serial.print(cons_vitesse);
     Serial.print(" et cons teta = "); Serial.println(cons_angle);
-    myservo.write(90+cons_angle);  }
+    mymotor.write(cons_vitesse);}
+  else if (c == 'a' ){cons_angle=map(x,0,254,ANGLE_MIN,ANGLE_MAX); 
+                        c ='z';
+    Serial.print("cons Speed = "); Serial.print(cons_vitesse);
+    Serial.print(" et cons teta = "); Serial.println(cons_angle);
+    myservo.write(cons_angle);  }
 
 
 
@@ -74,9 +78,9 @@ delay(10);
 // this function is registered as an event, see setup()
 void receiveEvent(int howMany) {
   while (1 < Wire.available()) { // loop through all but the last
-    c = Wire.read(); // receive byte as a character
-    //Serial.println(c);       // print the character
+    c = char(Wire.read()); // receive byte as a character
+    Serial.print(c);       // print the character
   }
   x = Wire.read();    // receive byte as an integer
-  //Serial.println(x);         // print the integer
+  Serial.println(x);         // print the integer
 }
